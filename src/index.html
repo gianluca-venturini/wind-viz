@@ -1,6 +1,11 @@
 <!doctype html>
 <html>
   <body>
-    <script src="bundle.js"></script>
+    <canvas id="map" width="800" height="800" style="position: absolute"></canvas>
+    <canvas id="wind" width="800" height="800" style="position: absolute"></canvas>
+    <script>
+      const stats = () => {var script=document.createElement('script');script.onload=function(){var stats=new Stats();document.body.appendChild(stats.dom);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//mrdoob.github.io/stats.js/build/stats.min.js';document.head.appendChild(script);};
+      stats();
+    </script>
   </body>
 </html>
