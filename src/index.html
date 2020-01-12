@@ -1,11 +1,31 @@
 <!doctype html>
 <html>
-  <body>
-    <canvas id="map" width="800" height="800" style="position: absolute"></canvas>
-    <canvas id="wind" width="800" height="800" style="position: absolute"></canvas>
-    <script>
-      const stats = () => {var script=document.createElement('script');script.onload=function(){var stats=new Stats();document.body.appendChild(stats.dom);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//mrdoob.github.io/stats.js/build/stats.min.js';document.head.appendChild(script);};
-      stats();
-    </script>
-  </body>
+	<head>
+		<style>
+			html, body {
+				margin: 0;
+			}
+		</style>
+	</head>
+  	<body>
+		<canvas id="map" width="800" height="800" style="position: absolute"></canvas>
+		<canvas id="wind" width="800" height="800" style="position: absolute"></canvas>
+		<script type="x-shader/x-vertex" id="vertexshader">
+			attribute vec3 position;	
+			void main() {
+				gl_PointSize = 1.0;
+				gl_Position = vec4( position, 1.0 );
+			}
+		</script>
+
+		<script type="x-shader/x-fragment" id="fragmentshader">
+			void main() {
+				gl_FragColor = vec4( 0.0, 0.0, 0.0, 1.0 );
+			}
+		</script>
+		<script>
+		const stats = () => {var script=document.createElement('script');script.onload=function(){var stats=new Stats();document.body.appendChild(stats.dom);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//mrdoob.github.io/stats.js/build/stats.min.js';document.head.appendChild(script);};
+		stats();
+		</script>
+	</body>
 </html>

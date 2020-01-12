@@ -1,65 +1,95 @@
 import * as d3 from 'd3';
+import * as THREE from 'three';
+import { BufferAttribute } from 'three';
 import { DataStore } from './DataStore';
+import { WindCalculator } from './WindCalculator';
 
 async function start() {
     const data = require('../data/data.json');
     const dataStore = new DataStore(data);
 
     const geojson = await d3.json('https://gist.githubusercontent.com/d3indepth/f28e1c3a99ea6d84986f35ac8646fac7/raw/c58cede8dab4673c91a3db702d50f7447b373d98/ne_110m_land.json');
-    window.setInterval(update, 10);
+    window.setInterval(update, 100);
 
     const geoContext = (d3.select('#map').node() as HTMLCanvasElement).getContext('2d')!;
     const windCanvas = d3.select('#wind').node() as HTMLCanvasElement;
-    const windContext = windCanvas.getContext('2d')!;
-    let offscreenCanvas = document.createElement('canvas');
-    offscreenCanvas.width = windCanvas.width;
-    offscreenCanvas.height = windCanvas.height;
-    const windOffscreenContext = offscreenCanvas.getContext('2d')!;
 
-    var projection = d3.geoOrthographic()
+    const rotation: [number, number] = [0, 0];
+    let dragInProgress = false;
+
+    function dragged() {
+        rotation[0] += d3.event.dx * 0.1;
+        rotation[1] -= d3.event.dy * 0.1;
+    }
+    function dragStart() {
+        dragInProgress = true;
+        d3.select('#wind').style('opacity', 0);
+    }
+    function dragEnd() {
+        rotation[0] += d3.event.dx * 0.1;
+        rotation[1] -= d3.event.dy * 0.1;
+        dragInProgress = false;
+        windCalculator.reset();
+        d3.select('#wind').style('opacity', 1);
+        animationLoop();
+    }
+
+    const dragBehavior = d3.drag()
+        .on("start", dragStart)
+        .on("end", dragEnd)
+        .on("drag", dragged);
+    dragBehavior(d3.select('#wind'));
+
+    const width = windCanvas.width;
+    const height = windCanvas.height;
+
+    const projection = d3.geoOrthographic()
+        .translate([width/2, height/2])
         .scale(300);
 
-    var geoGenerator = d3.geoPath()
+    const geoGenerator = d3.geoPath()
         .projection(projection)
         .pointRadius(1)
         .context(geoContext);
 
-    var windGenerator = d3.geoPath()
-        .projection(projection)
-        .pointRadius(1)
-        .context(windContext);
+    // Init three js 
+    const camera = new THREE.OrthographicCamera(width / -2, width / 2, height / 2, height / -2, 1, 1000);
+    camera.position.z = 2;
+    const scene = new THREE.Scene();
+    var shaderMaterial = new THREE.RawShaderMaterial({
+        vertexShader: document.getElementById('vertexshader')?.textContent!,
+        fragmentShader: document.getElementById('fragmentshader')?.textContent!,
+        transparent: true
+    });
+    const geometry = new THREE.BufferGeometry();
+    const particleSystem = new THREE.Points( geometry, shaderMaterial );
+    scene.add( particleSystem );
+    const renderer = new THREE.WebGLRenderer({ canvas: windCanvas, alpha: true });
 
-    
-    var yaw = 300;
+    const windCalculator = new WindCalculator(10_000, projection, dataStore, width, height);
+    geometry.addAttribute( 'position', new THREE.BufferAttribute( windCalculator.vertices, 3 ) );
 
-    const points: [number, number][] = [];
-    addPoints(points, 2000);
+    function animationLoop() {
+        renderer.render( scene, camera );
+
+        if (!dragInProgress) {
+            requestAnimationFrame(animationLoop)
+        }
+    }
+    animationLoop();
+
 
     function update() {
-        points.forEach(point => {
-            const wind = dataStore.getWind(point);
-            if (wind) {
-                point[0] += wind[0] * 0.01;
-                point[1] += wind[1] * 0.01;
-            }
-        })
+        projection.rotate(rotation);
+        windCalculator.calculateNextPosition();
+        windCalculator.generateNewPositions(100);
+        (geometry.attributes.position as BufferAttribute).needsUpdate = true;
 
         geoContext.clearRect(0, 0, 800, 800);
-        windOffscreenContext.clearRect(0, 0, 800, 800);
-        windOffscreenContext.globalAlpha = 0.99;
-        windOffscreenContext.drawImage(windCanvas, 0, 0);
-        windContext.clearRect(0, 0, 800, 800);
-        windContext.drawImage(offscreenCanvas, 0, 0);
-
+    
         geoContext.lineWidth = 1;
         geoContext.strokeStyle = '#333';
-        windContext.lineWidth = 0.1;
-        windContext.strokeStyle = '#333';
-
-        windContext.beginPath();
-        points.forEach(point => windGenerator({type: 'Point', coordinates: point})); 
-        windContext.stroke();
-
+    
         geoContext.beginPath();
         geoGenerator({type: 'FeatureCollection', features: geojson.features})
         geoContext.stroke();
@@ -71,27 +101,6 @@ async function start() {
         // geoGenerator(graticule());
         // geoContext.stroke();
 
-        deletePoints(points, 100);
-        addPoints(points, 100);
-    }
-
-    console.log(data);
-}
-
-function addPoints(points: [number, number][], num: number) {
-    for (let i = 0; i < num; i++) {
-        const lat = Math.random() * 180 - 90;
-        const lon = Math.random() * 360;
-        points.push([lon, lat]);
-    }
-}
-
-function deletePoints(points: [number, number][], num: number) {
-    for (let i = 0; i < num; i++) {
-        if (points.length === 0) {
-            return;
-        }
-        delete points[0];
     }
 }
 

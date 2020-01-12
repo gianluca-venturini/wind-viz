@@ -1,5 +1,5 @@
 type LonLat = [number, number];
-type Wind = [number, number];
+export type Wind = [number, number];
 
 interface DataVariable {
     header: {
@@ -52,14 +52,32 @@ export class DataStore {
     }
 
     getWind(pointCoordinates: LonLat): Wind | null {
+        const safePointCoordinates = this.toSafeCoordinates(pointCoordinates);
         const coordinates: LonLat[] = [
-            [Math.floor(pointCoordinates[0]), Math.floor(pointCoordinates[1])],
-            [Math.floor(pointCoordinates[0]), Math.ceil(pointCoordinates[1])],
-            [Math.ceil(pointCoordinates[0]), Math.floor(pointCoordinates[1])],
-            [Math.ceil(pointCoordinates[0]), Math.ceil(pointCoordinates[1])]
+            [Math.floor(safePointCoordinates[0]), Math.floor(safePointCoordinates[1])],
+            [Math.floor(safePointCoordinates[0]), Math.ceil(safePointCoordinates[1])],
+            [Math.ceil(safePointCoordinates[0]), Math.floor(safePointCoordinates[1])],
+            [Math.ceil(safePointCoordinates[0]), Math.ceil(safePointCoordinates[1])]
         ];
         const windPoints = coordinates.map(c => this.key(...c)).map(key => ([this.windU.get(key), this.windV.get(key)] as [number, number]));
-        return this.linearInterpolation<Wind>(windPoints, coordinates, pointCoordinates);
+        return this.linearInterpolation<Wind>(windPoints, coordinates, safePointCoordinates);
+    }
+
+    /** Make sure the coordinates are in the format lat: [-90, 90], lon: [0, 360] */
+    private toSafeCoordinates(pointCoordinates: LonLat): LonLat {
+        if (pointCoordinates[1] > 90 || pointCoordinates[1] < -90) {
+            throw new Error('Latitude out of bound');
+        }
+        if (pointCoordinates[0] > 360 || pointCoordinates[0] < -180) {
+            throw new Error('Longitude out of bound');
+        }
+        if (pointCoordinates[0] < 0) {
+            return [
+                pointCoordinates[0] + 360,
+                pointCoordinates[1]
+            ]
+        }
+        return pointCoordinates;
     }
 
     private linearInterpolation<T>(variablePoints: (T | undefined)[], variablePointCoordinates: LonLat[], pointCoordinates: LonLat) {
