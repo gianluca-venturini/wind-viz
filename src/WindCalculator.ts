@@ -5,6 +5,7 @@ const OFFSCREEN_Z = -2;
 export class WindCalculator {
     private nextElementIndex = 0;
     private _vertices: Float32Array;
+    private _opacity: Float32Array;
 
     constructor(
         private numPositions: number, 
@@ -14,11 +15,16 @@ export class WindCalculator {
         private height: number
     ) {
         this._vertices = new Float32Array( numPositions * 3 );
+        this._opacity = new Float32Array( numPositions );
         this.reset();
     }
 
     get vertices(): Float32Array {
         return this._vertices;
+    }
+
+    get opacity(): Float32Array {
+        return this._opacity;
     }
 
     public reset() {
@@ -43,8 +49,9 @@ export class WindCalculator {
                 this._vertices[index * 3 + 2] = OFFSCREEN_Z;
                 continue;
             }
-            geoCoordinates[0] += wind[0] * 0.1;
-            geoCoordinates[1] += wind[1] * 0.1;
+            geoCoordinates[0] += wind[0] * 0.05;
+            geoCoordinates[1] += wind[1] * 0.05;
+            this._opacity[index] = Math.pow(Math.pow(Math.pow(wind[0], 2) + Math.pow(wind[1], 2), 1/2) / 10, 2) / 10;
             const glCoordinates = this.toGlCoordinates(geoCoordinates[0], geoCoordinates[1]);
             if(!glCoordinates) {
                 // Send the point offscreen
@@ -81,6 +88,7 @@ export class WindCalculator {
         if (this.nextElementIndex >= this.numPositions) {
             this.nextElementIndex = 0;
         }
+        this._opacity[this.nextElementIndex] = 0;
     }
 
     private toGlCoordinates(lon: number, lat: number): [number, number] | null {

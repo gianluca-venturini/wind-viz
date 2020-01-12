@@ -88,6 +88,7 @@ async function start() {
 
     const windCalculator = new WindCalculator(10_000, projection, dataStore, width, height);
     geometry.setAttribute( 'position', new THREE.BufferAttribute( windCalculator.vertices, 3 ) );
+    geometry.setAttribute( 'opacity', new THREE.BufferAttribute( windCalculator.opacity, 1 ) );
 
     function animationLoop() {
         //Draw to textureB
@@ -117,6 +118,7 @@ async function start() {
         windCalculator.calculateNextPosition();
         windCalculator.generateNewPositions(100);
         (geometry.attributes.position as BufferAttribute).needsUpdate = true;
+        (geometry.attributes.opacity as BufferAttribute).needsUpdate = true;
 
         geoContext.clearRect(0, 0, 800, 800);
     

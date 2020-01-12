@@ -12,15 +12,21 @@
 		<canvas id="wind" width="800" height="800" style="position: absolute"></canvas>
 		<script type="x-shader/x-vertex" id="vertexshader">
 			attribute vec3 position;	
+			attribute float opacity;
+			varying float alpha;
+
 			void main() {
 				gl_PointSize = 1.0;
 				gl_Position = vec4( position, 1.0 );
+				alpha = opacity;
 			}
 		</script>
 
 		<script type="x-shader/x-fragment" id="fragmentshader">
+			precision highp float;
+			varying float alpha;
 			void main() {
-				gl_FragColor = vec4( 0.0, 0.0, 0.0, 0.5 );
+				gl_FragColor = vec4( 0.0, 0.0, 0.0, alpha );
 			}
 		</script>
 		<script id="fragmentShaderBlur" type="shader-code">
@@ -38,9 +44,9 @@
 					for (float y = -1.0; y <= 1.0; y++) {
 						vec4 pixelColor = texture2D(bufferTexture, vec2(pixel.x + xPixel * x, pixel.y + yPixel * y ));
 						if (x == 0.0 && y == 0.0) {
-							gl_FragColor.a += pixelColor.a * 0.2;
+							gl_FragColor.a += pixelColor.a / 18.0 * 10.0;
 						} else {
-							gl_FragColor.a += pixelColor.a * 0.1;
+							gl_FragColor.a += pixelColor.a / 18.0 * 1.0;
 						}
 
 					}
