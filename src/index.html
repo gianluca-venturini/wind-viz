@@ -20,12 +20,38 @@
 
 		<script type="x-shader/x-fragment" id="fragmentshader">
 			void main() {
-				gl_FragColor = vec4( 0.0, 0.0, 0.0, 1.0 );
+				gl_FragColor = vec4( 0.0, 0.0, 0.0, 0.5 );
 			}
 		</script>
+		<script id="fragmentShaderBlur" type="shader-code">
+			//Smoke diffuse
+			uniform vec2 res; //The width and height of our screen
+			uniform sampler2D bufferTexture; //Our input texture
+			
+			void main() {
+				float xPixel = 1.0/res.x;
+				float yPixel = 1.0/res.y;
+				
+				vec2 pixel = gl_FragCoord.xy / res.xy;
+		  
+				for (float x = -1.0; x <= 1.0; x++) {
+					for (float y = -1.0; y <= 1.0; y++) {
+						vec4 pixelColor = texture2D(bufferTexture, vec2(pixel.x + xPixel * x, pixel.y + yPixel * y ));
+						if (x == 0.0 && y == 0.0) {
+							gl_FragColor.a += pixelColor.a * 0.2;
+						} else {
+							gl_FragColor.a += pixelColor.a * 0.1;
+						}
+
+					}
+				}
+				vec4 currentColor = texture2D(bufferTexture, vec2(pixel.x, pixel.y));
+				gl_FragColor.rgb = vec3(currentColor.r, currentColor.g, currentColor.b);
+			  }
+		</script>
 		<script>
-		const stats = () => {var script=document.createElement('script');script.onload=function(){var stats=new Stats();document.body.appendChild(stats.dom);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//mrdoob.github.io/stats.js/build/stats.min.js';document.head.appendChild(script);};
-		stats();
+			const stats = () => {var script=document.createElement('script');script.onload=function(){var stats=new Stats();document.body.appendChild(stats.dom);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//mrdoob.github.io/stats.js/build/stats.min.js';document.head.appendChild(script);};
+			stats();
 		</script>
 	</body>
 </html>

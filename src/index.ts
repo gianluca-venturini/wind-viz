@@ -24,6 +24,8 @@ async function start() {
     function dragStart() {
         dragInProgress = true;
         d3.select('#wind').style('opacity', 0);
+        textureA.dispose();
+        textureB.dispose();
     }
     function dragEnd() {
         rotation[0] += d3.event.dx * 0.1;
@@ -53,24 +55,55 @@ async function start() {
         .context(geoContext);
 
     // Init three js 
+    let textureA = new THREE.WebGLRenderTarget( width, height, { minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter});
+    let textureB = new THREE.WebGLRenderTarget( width, height, { minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter} );
+
     const camera = new THREE.OrthographicCamera(width / -2, width / 2, height / 2, height / -2, 1, 1000);
     camera.position.z = 2;
+    const bufferScene = new THREE.Scene();
     const scene = new THREE.Scene();
-    var shaderMaterial = new THREE.RawShaderMaterial({
+    const particleMaterial = new THREE.RawShaderMaterial({
         vertexShader: document.getElementById('vertexshader')?.textContent!,
         fragmentShader: document.getElementById('fragmentshader')?.textContent!,
         transparent: true
     });
+    const bufferMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            bufferTexture: { type: "t", value: textureA },
+            res : {type: 'v2',value:new THREE.Vector2(width, height)} //Keeps the resolution
+        },
+        fragmentShader: document.getElementById('fragmentShaderBlur')?.innerHTML,
+        transparent: true
+    });
+    const finalMaterial =  new THREE.MeshBasicMaterial({map: textureB.texture});
     const geometry = new THREE.BufferGeometry();
-    const particleSystem = new THREE.Points( geometry, shaderMaterial );
-    scene.add( particleSystem );
+    const particleSystem = new THREE.Points( geometry, particleMaterial );
+    const plane = new THREE.PlaneBufferGeometry(width, height);
+    const bufferObject = new THREE.Mesh( plane, bufferMaterial );
+    const quad = new THREE.Mesh( plane, finalMaterial );
+    bufferScene.add( particleSystem );
+    bufferScene.add( bufferObject );
+    scene.add(quad);
     const renderer = new THREE.WebGLRenderer({ canvas: windCanvas, alpha: true });
 
     const windCalculator = new WindCalculator(10_000, projection, dataStore, width, height);
-    geometry.addAttribute( 'position', new THREE.BufferAttribute( windCalculator.vertices, 3 ) );
+    geometry.setAttribute( 'position', new THREE.BufferAttribute( windCalculator.vertices, 3 ) );
 
     function animationLoop() {
-        renderer.render( scene, camera );
+        //Draw to textureB
+        renderer.setRenderTarget(textureB);
+        renderer.render(bufferScene, camera);
+
+        //Swap textureA and B
+        const t = textureA;
+        textureA = textureB;
+        textureB = t;
+        finalMaterial.map = textureB.texture;
+        bufferMaterial.uniforms.bufferTexture.value = textureA;
+
+        //Finally, draw to the screen
+        renderer.setRenderTarget(null);
+        renderer.render(scene, camera);
 
         if (!dragInProgress) {
             requestAnimationFrame(animationLoop)
